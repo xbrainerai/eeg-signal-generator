@@ -1,0 +1,32 @@
+# stream_config.yaml
+
+stream:
+  output_type: websocket           # Options: websocket, tcp, unix, shared_memory
+  output_url: ws://localhost:8765 # WebSocket endpoint to send mock EEG data
+  sampling_rate: 256              # Sampling rate in Hz (configurable: 128, 256, 512, 1024)
+  channel_count: 16               # Number of EEG channels to simulate
+  mode: mixed                     # Signal mode: sine, noise, mixed, artifact_only
+  signal_base_freq: 10            # Base frequency for sine waves (in Hz)
+  variable_freq_jitter: 0.3       # Small frequency randomization per channel (±0.3 Hz)
+  duration_seconds: 0             # Stream indefinitely (0 = no end)
+
+artifacts:
+  inject: true                    # Enable simulated artifacts
+  dropout:
+    enabled: true
+    every_seconds: 2              # Simulate dropout every 2 seconds
+    duration_ms: 100              # Duration of dropout
+  spikes:
+    enabled: true
+    frequency_hz: 0.5             # How frequently to inject spikes
+  invert:
+    enabled: true
+    probability: 0.01             # Probability of signal inversion per frame
+
+diagnostics:
+  log_interval: 1                 # Interval (in seconds) for logging diagnostics
+  log_to_file: false              # If true, logs diagnostics to stream.log
+
+metadata:
+  schema_version: 1.0
+  tag: mock-eeg-dev
