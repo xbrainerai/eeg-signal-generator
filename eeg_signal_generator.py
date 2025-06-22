@@ -14,7 +14,7 @@ class EegSignalGenerator:
 
     def start_generating_signals(self, server_output):
         t0 = time.time()
-        timer = tornado.ioloop.PeriodicCallback(lambda: self.generate_signal(server_output, t0), 1000/self.rate)
+        timer = tornado.ioloop.PeriodicCallback(lambda : self.generate_signal(server_output, t0), 1000/self.rate)
         timer.start()
 
         return timer

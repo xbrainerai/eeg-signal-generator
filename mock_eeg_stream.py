@@ -10,6 +10,7 @@ import argparse, yaml, asyncio, time
 from eeg_signal_utils import sine_wave, gauss_noise, spike_artifact
 from eeg_web_socket_handler import EegWebSocketHandler
 from eeg_signal_generator import EegSignalGenerator
+from eeg_tcp_server import EegTcpServer
 
 def load_config(path):
     if path:
@@ -45,7 +46,12 @@ if __name__ == "__main__":
     if ws_port == tcp_port:
         raise argparse.ArgumentError(None, message="TCP port and WebSocket port must be different")
 
-    application = tornado.web.Application([(r'/', EegWebSocketHandler, {'port': ws_port, 'eeg_signal_generator': signal_generator })])
-    application.listen(ws_port)
-    print(f'Mock EEG stream running at ws://localhost:{ws_port}')
-    tornado.ioloop.IOLoop.instance().start()
+    web_socket_server = tornado.web.Application([(r'/', EegWebSocketHandler, {'port': ws_port, 'eeg_signal_generator': signal_generator })])
+    web_socket_server.listen(ws_port)
+    print(f'Mock EEG WebSocket stream running at ws://localhost:{ws_port}')
+
+    tcp_server = EegTcpServer(signal_generator)
+    tcp_server.listen(tcp_port)
+    print(f'Mock EEG TCP stream running at localhost:{tcp_port}')
+
+    tornado.ioloop.IOLoop.current().start()
