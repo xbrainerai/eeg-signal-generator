@@ -1,0 +1,12 @@
+{
+  "timestamp": 1721412212.123,
+  "channel_count": 2,
+  "sampling_rate": 250,
+  "signal_type": "EEG",
+  "packet_id": "eeg-session001-0001",
+  "data": [0.1, 0.2],
+  "meta": {
+    "source": "mock_eeg_generator",
+    "device_id": "mock-01"
+  }
+}
