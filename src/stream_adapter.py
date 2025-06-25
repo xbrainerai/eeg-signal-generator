@@ -3,7 +3,7 @@ import asyncio
 import logging
 import os
 import time
-import json  
+import json
 from collections import deque
 from stream_metrics import MetricsHandler
 from disk_queue import DiskQueue
@@ -27,7 +27,7 @@ class StreamAdapter:
             latency = (now - packet.get("timestamp", now)) * 1000  # ms
             # Metrics
             self.metrics.update_latency(latency)
-            if "data" not in packet or not isinstance(packet["data"], list):
+            if "signal" not in packet or not isinstance(packet["signal"], list):
                 logging.warning("Malformed packet dropped: missing or invalid 'data'")
                 self.metrics.increment_dropped_packets()
                 continue
@@ -47,7 +47,7 @@ class StreamAdapter:
             for payload in records:
                 # Assume packet is stringified dict — parse or eval as needed
                 try:
-                    packet = json.loads(payload)  
+                    packet = json.loads(payload)
                     self.buffer.append(packet)
                     logging.info("Replayed packet from disk queue.")
                 except Exception as e:
