@@ -26,4 +26,4 @@ async def metrics_endpoint(request: Request):
         raise HTTPException(status_code=403, detail="Forbidden")
     return metrics.prometheus_format()
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
