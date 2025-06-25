@@ -1,0 +1,1 @@
+numpy websockets pydantic==2.* rich
