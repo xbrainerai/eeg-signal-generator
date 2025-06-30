@@ -6,3 +6,7 @@ pytest
 pytest-asyncio
 prometheus-client
 sqlite-utils
+numpy
+pydantic==2.*
+rich
+
