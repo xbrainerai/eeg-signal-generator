@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SignalFrameV1",
+  "description": "Normalized EEG/IMU batch frame",
+  "type": "object",
+  "required": ["ts_start", "ts_end", "frame_seq", "rate", "channels", "data"],
+  "properties": {
+    "ts_start": { "type": "string", "format": "date-time" },
+    "ts_end":   { "type": "string", "format": "date-time" },
+    "frame_seq":{ "type": "integer", "minimum": 0 },
+    "rate":     { "type": "integer", "minimum": 1 },
+    "channels": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "data": {
+      "description": "2-D array of µV-normalized samples",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": { "type": "number" }
+      }
+    }
+  }
+}

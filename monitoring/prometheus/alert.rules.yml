@@ -1,0 +1,20 @@
+groups:
+- name: eeg_adapter.rules
+  rules:
+  - alert: HighLatency
+    expr: stream_latency_99p > 50
+    for: 30s
+    labels: { severity: warning }
+    annotations: { summary: "High stream latency (p99 > 50 ms)" }
+
+  - alert: BufferAlmostFull
+    expr: stream_buffer_fill_percent > 80
+    for: 15s
+    labels: { severity: warning }
+    annotations: { summary: "Buffer > 80 % full" }
+
+  - alert: DroppedPackets
+    expr: increase(stream_dropped_packets[1m]) > 0
+    for: 0s
+    labels: { severity: critical }
+    annotations: { summary: "Packets are being dropped!" }

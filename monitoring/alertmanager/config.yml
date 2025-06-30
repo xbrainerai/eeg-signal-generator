@@ -1,0 +1,10 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: 'console'
+
+receivers:
+- name: 'console'
+  webhook_configs:
+  - url: 'http://127.0.0.1:5001'   # placeholder – change to Slack/email later

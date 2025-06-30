@@ -1,0 +1,68 @@
+{
+  "uid": "eeg-adapter",
+  "title": "EEG Stream Adapter",
+  "schemaVersion": 37,
+  "version": 1,
+  "time": { "from": "now-5m", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Latency P99 (ms)",
+      "datasource": "Prometheus",
+      "targets": [ { "expr": "stream_latency_99p" } ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red",   "value": 50 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 6 }
+    },
+    {
+      "type": "stat",
+      "title": "Buffer Fill %",
+      "datasource": "Prometheus",
+      "targets": [ { "expr": "stream_buffer_fill_percent" } ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red",   "value": 80 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 6 }
+    },
+    {
+      "type": "stat",
+      "title": "Dropped Packets/min",
+      "datasource": "Prometheus",
+      "targets": [ { "expr": "increase(stream_dropped_packets[1m])" } ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "orange", "value": 1 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 6 }
+    }
+  ]
+}

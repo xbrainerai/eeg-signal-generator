@@ -1,0 +1,56 @@
+--- Tue Jun 24 23:45:23 PDT 2025 ---
+# HELP stream_latency_99p Milliseconds at 99th percentile
+# TYPE stream_latency_99p gauge
+stream_latency_99p 287181.76
+
+# HELP stream_buffer_fill_percent Current buffer fill percent
+# TYPE stream_buffer_fill_percent gauge
+stream_buffer_fill_percent 100.00
+
+# HELP stream_dropped_packets Total dropped packets
+# TYPE stream_dropped_packets counter
+stream_dropped_packets 77--- Tue Jun 24 23:45:44 PDT 2025 ---
+# HELP stream_latency_99p Milliseconds at 99th percentile
+# TYPE stream_latency_99p gauge
+stream_latency_99p 328737.77
+
+# HELP stream_buffer_fill_percent Current buffer fill percent
+# TYPE stream_buffer_fill_percent gauge
+stream_buffer_fill_percent 100.00
+
+# HELP stream_dropped_packets Total dropped packets
+# TYPE stream_dropped_packets counter
+stream_dropped_packets 84--- Tue Jun 24 23:46:04 PDT 2025 ---
+# HELP stream_latency_99p Milliseconds at 99th percentile
+# TYPE stream_latency_99p gauge
+stream_latency_99p 349593.63
+
+# HELP stream_buffer_fill_percent Current buffer fill percent
+# TYPE stream_buffer_fill_percent gauge
+stream_buffer_fill_percent 100.00
+
+# HELP stream_dropped_packets Total dropped packets
+# TYPE stream_dropped_packets counter
+stream_dropped_packets 90--- Tue Jun 24 23:46:36 PDT 2025 ---
+# HELP stream_latency_99p Milliseconds at 99th percentile
+# TYPE stream_latency_99p gauge
+stream_latency_99p 364754.82
+
+# HELP stream_buffer_fill_percent Current buffer fill percent
+# TYPE stream_buffer_fill_percent gauge
+stream_buffer_fill_percent 100.00
+
+# HELP stream_dropped_packets Total dropped packets
+# TYPE stream_dropped_packets counter
+stream_dropped_packets 95--- Tue Jun 24 23:47:03 PDT 2025 ---
+# HELP stream_latency_99p Milliseconds at 99th percentile
+# TYPE stream_latency_99p gauge
+stream_latency_99p 400115.02
+
+# HELP stream_buffer_fill_percent Current buffer fill percent
+# TYPE stream_buffer_fill_percent gauge
+stream_buffer_fill_percent 100.00
+
+# HELP stream_dropped_packets Total dropped packets
+# TYPE stream_dropped_packets counter
+stream_dropped_packets 102

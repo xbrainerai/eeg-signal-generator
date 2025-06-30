@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  prometheus:
+    image: prom/prometheus
+    container_name: eeg-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
+    command: ['--config.file=/etc/prometheus/prometheus.yml']
+    ports: ["9090:9090"]
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: eeg-alertmanager
+    volumes:
+      - ./alertmanager/config.yml:/etc/alertmanager/config.yml
+    command: ['--config.file=/etc/alertmanager/config.yml']
+    ports: ["9093:9093"]
+
+  grafana:
+    image: grafana/grafana
+    container_name: eeg-grafana
+    ports: ["3000:3000"]
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+
+volumes:
+  grafana-storage:
