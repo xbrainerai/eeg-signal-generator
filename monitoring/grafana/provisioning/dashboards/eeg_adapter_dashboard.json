@@ -2,67 +2,368 @@
   "uid": "eeg-adapter",
   "title": "EEG Stream Adapter",
   "schemaVersion": 37,
-  "version": 1,
-  "time": { "from": "now-5m", "to": "now" },
+  "version": 2,
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
   "panels": [
     {
-      "type": "stat",
-      "title": "Latency P99 (ms)",
-      "datasource": "Prometheus",
-      "targets": [ { "expr": "stream_latency_99p" } ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "type": "timeseries",
+      "title": "Latency (ms)",
+      "targets": [
+        {
+          "expr": "stream_latency_99p",
+          "legendFormat": "p99",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
       "fieldConfig": {
         "defaults": {
-          "unit": "ms",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "points",
+            "fillOpacity": 0,
+            "pointSize": 5,
+            "lineWidth": 1
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red",   "value": 50 }
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
             ]
           }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "showLegend": true,
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
         }
       },
-      "gridPos": { "x": 0, "y": 0, "w": 8, "h": 6 }
+      "pluginVersion": "12.0.2"
     },
     {
-      "type": "stat",
+      "type": "gauge",
       "title": "Buffer Fill %",
-      "datasource": "Prometheus",
-      "targets": [ { "expr": "stream_buffer_fill_percent" } ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "expr": "stream_buffer_fill_percent",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
+          "min": 0,
+          "max": 100,
           "thresholds": {
-            "mode": "absolute",
+            "mode": "percentage",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red",   "value": 80 }
+              {
+                "color": "green"
+              },
+              {
+                "color": "orange",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
             ]
           }
-        }
+        },
+        "overrides": []
       },
-      "gridPos": { "x": 8, "y": 0, "w": 8, "h": 6 }
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "auto"
+      },
+      "pluginVersion": "12.0.2"
     },
     {
       "type": "stat",
-      "title": "Dropped Packets/min",
-      "datasource": "Prometheus",
-      "targets": [ { "expr": "increase(stream_dropped_packets[1m])" } ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Dropped Packets",
+      "targets": [
+        {
+          "expr": "stream_dropped_packets",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 8
+      },
+      "id": 3,
       "fieldConfig": {
         "defaults": {
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green",  "value": null },
-              { "color": "orange", "value": 1 }
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
             ]
           }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "auto",
+        "graphMode": "area"
+      },
+      "pluginVersion": "12.0.2"
+    },
+    {
+      "type": "stat",
+      "title": "Validation Failures/min",
+      "targets": [
+        {
+          "expr": "increase(validation_failures_total[1m]) or vector(0)",
+          "refId": "B"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 8
+      },
+      "id": 4,
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "auto"
+      },
+      "pluginVersion": "12.0.2"
+    },
+    {
+      "type": "stat",
+      "title": "Packets Ingested/min",
+      "targets": [
+        {
+          "expr": "increase(stream_total_ingested_total[1m]) or vector(0)",
+          "refId": "C"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 8
+      },
+      "id": 5,
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "auto"
+      },
+      "pluginVersion": "12.0.2"
+    },
+    {
+      "type": "stat",
+      "title": "Dropped Packets (5m)",
+      "targets": [
+        {
+          "expr": "increase(stream_dropped_packets_total[5m]) or vector(0)",
+          "refId": "D"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 8
+      },
+      "id": 6,
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "auto"
+      },
+      "pluginVersion": "12.0.2"
+    },
+    {
+      "type": "timeseries",
+      "title": "Jitter (ms) - Raw Values",
+      "targets": [
+        {
+          "expr": "stream_jitter_ms",
+          "legendFormat": "Raw Jitter",
+          "refId": "J1"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 13
+      },
+      "id": 100,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "lines",
+            "fillOpacity": 0,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "showLegend": true,
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
         }
       },
-      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 6 }
+      "pluginVersion": "12.0.2"
+    },
+    {
+      "type": "timeseries",
+      "title": "Jitter (ms) - p99 (Histogram)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(stream_jitter_hist_ms_bucket[1m])) by (le))",
+          "legendFormat": "p99 Jitter",
+          "refId": "J2"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 13
+      },
+      "id": 101,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "lines",
+            "fillOpacity": 0,
+            "lineWidth": 2
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "showLegend": true,
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "pluginVersion": "12.0.2"
     }
   ]
 }
