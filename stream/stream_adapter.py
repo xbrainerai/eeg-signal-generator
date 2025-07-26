@@ -15,17 +15,18 @@ except ModuleNotFoundError:
     websockets = None
 
 from protocol.types import SignalChunk
-from src.stream_metrics import (
+from stream.stream_metrics import (
     stream_latency_ms,
     stream_latency_99p,
     stream_buffer_fill,
     stream_dropped_packets,
     stream_total_ingested
 )
-from src.disk_queue import DiskQueue
-from src.validation_pipeline import validate_frame
-from protocol.signal_stream_interface import ProtocolStreamReaderProtocol
+from stream.disk_queue import DiskQueue
+from stream.validation_pipeline import validate_frame
+from protocol.protocol_stream_interface import ProtocolStreamReaderProtocol
 from datetime import datetime, timezone, timedelta
+from stream.stream_metrics import stream_jitter_ms
 
 # ────────────── Logging Setup ──────────────
 logging.basicConfig(
@@ -51,7 +52,7 @@ class StreamAdapter:
         self.disk_queue = disk_queue
         self.throttle_hz = throttle_hz
 
-        self._last_warn = datetime.min
+        self._last_warn = datetime.min.replace(tzinfo=timezone.utc)
         self._latency_history: list[float] = []
 
     async def consume_stream(self) -> None:
@@ -65,7 +66,6 @@ class StreamAdapter:
             pkt_ts = float(packet.get("timestamp", 0))
             if last_packet_ts is not None:
                 jitter_ms = (pkt_ts - last_packet_ts) * 1000.0
-                from src.stream_metrics import stream_jitter_ms
                 stream_jitter_ms.observe(jitter_ms)
             last_packet_ts = pkt_ts
             self._process_packet(packet)
@@ -77,7 +77,8 @@ class StreamAdapter:
 
     def _process_packet(self, packet: SignalChunk) -> None:
         if self.throttle_hz is None:
-            raise ValueError("Throttle Hz is not set")
+            self._warn_drop("Rejected because throttle Hz is not set")
+            return
 
         now = time.time()
         pkt_ts = float(packet.get("timestamp", now))
