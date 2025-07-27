@@ -1,5 +1,6 @@
 import json
 import logging
+from metrics.metrics_collector import MetricsCollector
 from stream.validators import *
 from stream.stream_metrics import validation_failures, stream_jitter_ms, stream_jitter_hist_ms
 
@@ -12,7 +13,7 @@ QUARANTINE_FILE = "eeg_stream_adapter/quarantine_malformed.jsonl"
 # Stateful timestamp holder (to be optionally reset externally)
 _last_ts = None
 
-def validate_frame(frame, frequency: float):
+def validate_frame(frame, frequency: float, metrics_collector: MetricsCollector | None = None):
     global _last_ts
 
     try:
@@ -26,8 +27,10 @@ def validate_frame(frame, frequency: float):
             raise ValueError("Out-of-range µV values")
 
         curr_ts = frame["timestamp"]
+
         if _last_ts is not None:
             jitter_ms = (curr_ts - _last_ts) * 1000
+
             stream_jitter_ms.observe(jitter_ms)
             stream_jitter_hist_ms.observe(jitter_ms)
             if not is_timestamp_monotonic(curr_ts, _last_ts, frequency):

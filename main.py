@@ -66,7 +66,7 @@ async def _start_adapter() -> None:
     stream_buffer_fill.set(0)
 
     asyncio.create_task(adapter.consume_stream())
-    asyncio.create_task(report_metrics())
+    #asyncio.create_task(report_metrics())
 
 # ─────────── Prometheus /metrics Endpoint ───────────
 @app.get("/metrics", response_class=PlainTextResponse)

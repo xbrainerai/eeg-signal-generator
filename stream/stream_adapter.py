@@ -27,6 +27,7 @@ from stream.validation_pipeline import validate_frame
 from protocol.protocol_stream_interface import ProtocolStreamReaderProtocol
 from datetime import datetime, timezone, timedelta
 from stream.stream_metrics import stream_jitter_ms
+from metrics.metrics_collector import MetricsCollector
 
 # ────────────── Logging Setup ──────────────
 logging.basicConfig(
@@ -54,6 +55,8 @@ class StreamAdapter:
 
         self._last_warn = datetime.min.replace(tzinfo=timezone.utc)
         self._latency_history: list[float] = []
+        self.metrics_collector = MetricsCollector()
+
 
     async def consume_stream(self) -> None:
         if self.stream is None:
@@ -69,9 +72,10 @@ class StreamAdapter:
                 stream_jitter_ms.observe(jitter_ms)
             last_packet_ts = pkt_ts
             self._process_packet(packet)
-
             buf_pct = len(self.buffer) / self.buffer_limit * 100.0
+            self.metrics_collector.stage_buffer_fill(buf_pct)
             stream_buffer_fill.set(buf_pct)
+            self.metrics_collector.output_current_metric()
             if self.throttle_hz and buf_pct > 90:
                 await asyncio.sleep(1 / self.throttle_hz)
 
@@ -84,7 +88,7 @@ class StreamAdapter:
         pkt_ts = float(packet.get("timestamp", now))
         latency_ms = (now - pkt_ts) * 1000.0
         stream_latency_ms.observe(latency_ms)
-
+        self.metrics_collector.stage_end_to_end_latency(latency_ms)
         self._latency_history.append(latency_ms)
         if len(self._latency_history) > 1000:
             self._latency_history.pop(0)
@@ -92,8 +96,10 @@ class StreamAdapter:
         p99 = sorted_latency[int(0.99 * len(sorted_latency))] if sorted_latency else 0
         stream_latency_99p.set(p99)
 
-        if not validate_frame(packet, self.throttle_hz):
+        if not validate_frame(packet, self.throttle_hz, metrics_collector=self.metrics_collector):
             self._warn_drop("Rejected by validation pipeline")
+            self.metrics_collector.inc_dropped_packet_count()
+            self.metrics_collector.stage_anomoly_detection()
             return
 
         if len(self.buffer) >= self.buffer_limit:
