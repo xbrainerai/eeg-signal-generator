@@ -40,24 +40,6 @@ metrics_collector = MetricsCollector()
 # ─────────── FastAPI App ───────────
 app = FastAPI(title="EEG Stream Adapter Service")
 
-# ─────────── Optional: Console Debug Printout ───────────
-async def report_metrics(interval: int = 5) -> None:
-    while True:
-        now = datetime.datetime.now().strftime("%H:%M:%S")
-        latency_99p = stream_latency_99p._value.get()
-        buf_fill = stream_buffer_fill.collect()[0].samples[0].value if stream_buffer_fill.collect()[0].samples else 0
-        drops = stream_dropped_packets._value.get()
-        ingested = stream_total_ingested._value.get()
-        fails = validation_failures._value.get()
-
-        print(
-            f"[{now}] latency_99p={latency_99p:.2f}ms | "
-            f"buffer_fill={buf_fill:.2f}% | dropped={int(drops)} | "
-            f"ingested={int(ingested)} | validation_fails={int(fails)}",
-            file=sys.stdout
-        )
-        await asyncio.sleep(interval)
-
 # ─────────── Startup Initialization ───────────
 @app.on_event("startup")
 async def _start_adapter() -> None:
