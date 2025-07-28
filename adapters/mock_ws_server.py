@@ -67,19 +67,19 @@ async def stream_packets(websocket: ServerConnection):
             if now >= next_time:
                 timestamp = time.time()
                 packet = generate_packet(seq, timestamp)
+                print(f"sending packet at time {timestamp}")
                 await websocket.send(json.dumps(packet))
                 seq += 1
-                #print(f"{(now - previous_send):.6f}")
-                previous_send = next_time
                 next_time += interval
-
+                try:
+                    received_packet = await websocket.recv()
+                except Exception as exc:
+                    print(f"Error receiving packet: {exc}")
                 continue
+
             sleep_duration = max(0, next_time - now)
             if (sleep_duration > 0.015):
                 await asyncio.sleep(sleep_duration)
-
-
-
 
     except (ConnectionClosedOK, ConnectionClosedError):
         print("Client disconnected.")

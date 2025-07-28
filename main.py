@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import PlainTextResponse
 import uvicorn
 
+from metrics.metrics_collector import MetricsCollector
 from stream.stream_adapter import StreamAdapter
 from stream.stream_metrics import (
     stream_buffer_fill,
@@ -33,6 +34,8 @@ adapter = StreamAdapter(
     buffer_limit=2048,
     throttle_hz=512,
 )
+
+metrics_collector = MetricsCollector()
 
 # ─────────── FastAPI App ───────────
 app = FastAPI(title="EEG Stream Adapter Service")
@@ -66,6 +69,8 @@ async def _start_adapter() -> None:
     stream_buffer_fill.set(0)
 
     asyncio.create_task(adapter.consume_stream())
+    asyncio.create_task(metrics_collector.collect_metrics())
+    # TODO spin off thread for the metrics collector
     #asyncio.create_task(report_metrics())
 
 # ─────────── Prometheus /metrics Endpoint ───────────

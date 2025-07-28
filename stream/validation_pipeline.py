@@ -1,6 +1,5 @@
 import json
 import logging
-from metrics.metrics_collector import MetricsCollector
 from stream.validators import *
 from stream.stream_metrics import validation_failures, stream_jitter_ms, stream_jitter_hist_ms
 
@@ -13,7 +12,7 @@ QUARANTINE_FILE = "eeg_stream_adapter/quarantine_malformed.jsonl"
 # Stateful timestamp holder (to be optionally reset externally)
 _last_ts = None
 
-def validate_frame(frame, frequency: float, metrics_collector: MetricsCollector | None = None):
+def validate_frame(frame, frequency: float):
     global _last_ts
 
     try:

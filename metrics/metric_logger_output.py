@@ -8,7 +8,4 @@ class MetricLoggerOutput(MetricOutput):
         pass
 
     def output(self, metric: Metric):
-        if metric.ts is None or metric.buf is None or metric.lat is None or metric.drop is None or metric.anomaly is None:
-            raise ValueError("Metric is missing required fields")
-
         print(metric.to_string())
