@@ -12,7 +12,8 @@ PORT = 8001
 ENDPOINT_PATH = "/ws"
 PACKET_RATE_HZ = 512
 CHANNEL_COUNT = 8  # Match validation rule
-
+CLOCK_RESOLUTION = 0.015 # 15ms
+INTERVAL = 1.0 / PACKET_RATE_HZ
 # ────────────────────────────────
 # Generate Valid + Optional Faulty Packets
 # ────────────────────────────────
@@ -54,14 +55,12 @@ async def stream_packets(websocket: ServerConnection):
         print(f"Rejected connection on unexpected path: {websocket.request.path}")
         await websocket.close()
         return
-    path = websocket.request.path
-    print(f"Client connected at {path}")
+
+    print(f"Client connected at {websocket.request.path}")
     seq = 0
-    interval = 1.0 / PACKET_RATE_HZ
 
     try:
         next_time = time.perf_counter()
-        previous_send = next_time
         while True:
             now = time.perf_counter()
             if now >= next_time:
@@ -69,15 +68,12 @@ async def stream_packets(websocket: ServerConnection):
                 packet = generate_packet(seq, timestamp)
                 await websocket.send(json.dumps(packet))
                 seq += 1
-                next_time += interval
-                try:
-                    received_packet = await websocket.recv()
-                except Exception as exc:
-                    print(f"Error receiving packet: {exc}")
+                next_time += INTERVAL
+                received_packet = await websocket.recv()
                 continue
 
             sleep_duration = max(0, next_time - now)
-            if (sleep_duration > 0.015):
+            if (sleep_duration > CLOCK_RESOLUTION):
                 await asyncio.sleep(sleep_duration)
 
     except (ConnectionClosedOK, ConnectionClosedError):
