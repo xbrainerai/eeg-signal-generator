@@ -67,7 +67,6 @@ async def stream_packets(websocket: ServerConnection):
             if now >= next_time:
                 timestamp = time.time()
                 packet = generate_packet(seq, timestamp)
-                print(f"sending packet at time {timestamp}")
                 await websocket.send(json.dumps(packet))
                 seq += 1
                 next_time += interval
