@@ -1,0 +1,39 @@
+groups:
+  - name: timestamp-validator-alerts
+    interval: 15s
+    rules:
+      - alert: TimestampRegressionDetected
+        expr: increase(timestamp_regressions_total[1m]) > 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Timestamp regression detected"
+          description: "Timestamps went backward in the last 1 minute"
+
+      - alert: TimestampGapDetected
+        expr: increase(timestamp_gaps_total[1m]) > 0
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Gap detected in EEG stream"
+          description: "Missing or delayed packet timestamps observed"
+
+      - alert: ExcessiveJitterWarnings
+        expr: increase(timestamp_jitter_total[1m]) > 5
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High jitter in EEG timestamps"
+          description: "Excessive jitter warnings indicate unstable sample timing"
+
+      - alert: HighDeltaMS
+        expr: delta_ms_latest > 5
+        for: 5s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Δt detected"
+          description: "Δt is above safe threshold (5ms), may indicate timing instability"

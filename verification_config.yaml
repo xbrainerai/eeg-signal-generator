@@ -1,0 +1,5 @@
+sampling_rate: 500
+jitter_percent: 1
+gap_tolerance_ms: 5
+warn_threshold: 3
+sync_reset_frames: 5

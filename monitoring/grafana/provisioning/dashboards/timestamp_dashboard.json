@@ -1,0 +1,33 @@
+{
+  "title": "Packet Timestamp Validator",
+  "uid": "timestamp-validator",
+  "schemaVersion": 37,
+  "version": 1,
+  "time": { "from": "now-5m", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Regressions",
+      "targets": [{ "expr": "timestamp_regressions_total", "refId": "A" }],
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 5 }
+    },
+    {
+      "type": "stat",
+      "title": "Gaps",
+      "targets": [{ "expr": "timestamp_gaps_total", "refId": "B" }],
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 5 }
+    },
+    {
+      "type": "stat",
+      "title": "Jitter Warnings",
+      "targets": [{ "expr": "timestamp_jitter_total", "refId": "C" }],
+      "gridPos": { "x": 0, "y": 5, "w": 12, "h": 5 }
+    },
+    {
+      "type": "gauge",
+      "title": "Latest Δt (ms)",
+      "targets": [{ "expr": "delta_ms_latest", "refId": "D" }],
+      "gridPos": { "x": 12, "y": 5, "w": 12, "h": 5 }
+    }
+  ]
+}

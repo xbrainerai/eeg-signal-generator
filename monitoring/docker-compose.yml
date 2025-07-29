@@ -2,11 +2,12 @@ version: "3.8"
 
 services:
   prometheus:
-    image: prom/prometheus
+    image: prom/prometheus:latest
     container_name: eeg-prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
+      - ./prometheus/rules.yml:/etc/prometheus/rules.yml
     command: ['--config.file=/etc/prometheus/prometheus.yml']
     ports: ["9090:9090"]
 
@@ -19,12 +20,20 @@ services:
     ports: ["9093:9093"]
 
   grafana:
-    image: grafana/grafana
-    container_name: eeg-grafana
-    ports: ["3000:3000"]
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
     volumes:
       - grafana-storage:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards
+    restart: unless-stopped
 
 volumes:
   grafana-storage:

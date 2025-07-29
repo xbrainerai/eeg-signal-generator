@@ -4,6 +4,7 @@ global:
 
 rule_files:
   - /etc/prometheus/alert.rules.yml
+  - /etc/prometheus/rules.yml
 
 scrape_configs:
   - job_name: 'eeg_adapter'
@@ -11,7 +12,3 @@ scrape_configs:
     scheme: http
     static_configs:
       - targets: ['host.docker.internal:8080']   # Linux? use 172.17.0.1
-    headers:                                     # ← add this block
-      x-api-key: "supersecretkey"
-
-
