@@ -98,6 +98,7 @@ class StreamAdapter:
         self.disk_queue = disk_queue
         self.throttle_hz = throttle_hz
         self.main_ingest = MainIngest()
+        self._running = True
         self._last_warn = datetime.min.replace(tzinfo=timezone.utc)
         self._latency_history: list[float] = []
         self.dropped_packet_count = 0
@@ -130,6 +131,10 @@ class StreamAdapter:
         # Start the orchestrator
         self._orchestrator_task = None
 
+    def stop(self):
+        """Stop the stream adapter"""
+        self._running = False
+
     # Iterates through the stream and processes the packets.
     async def consume_stream(self) -> None:
         if self.stream is None:
@@ -141,6 +146,10 @@ class StreamAdapter:
         await self.stream.authenticate(self.token)
 
         async for packet in self.stream:
+            if not self._running:
+                logger.info(f"Stream adapter {self.stream_id} stopping")
+                break
+
             self.total_packets_received += 1
             logger.info("📥 Received from WebSocket: %s", packet)
 

@@ -19,13 +19,21 @@ class MetricsCollector:
             self.outputs.append(MetricLoggerOutput())
         if log_config['log_file_configuration']:
             self.outputs.append(MetricLoggerFile(log_config['log_file_configuration']['log_file_name'], log_config['log_file_configuration']['log_file_max_size'], log_config['log_file_configuration']['log_file_max_count']))
+        self._running = True
+
+    def stop(self):
+        """Stop the metrics collector"""
+        self._running = False
 
     async def collect_metrics(self):
-        while True:
+        while self._running:
             try:
                 metric = await self.main_ingest.process_and_next_metric()
                 for output in self.outputs:
                     output.output(metric)
+            except asyncio.CancelledError:
+                print("Metrics collector cancelled")
+                break
             except Exception as e:
                 print(f"Error collecting metrics: {e}")
                 await asyncio.sleep(1)

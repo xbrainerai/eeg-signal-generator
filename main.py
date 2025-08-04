@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import signal
 import sys
 from collections import deque
 from fastapi import FastAPI
@@ -28,7 +29,14 @@ from stream.rollback_handler import RollbackHandler
 from stream.execution_state_machine import ExecutionStateMachine
 from stream.execution_event_bus import ExecutionEventBus
 from stream.violation_handler import ViolationHandler
+from stream.stream_adapter import load_stream_config
 
+
+# ─────────── Global Variables for Shutdown ───────────
+adapters = []
+execution_orchestrator = None
+metrics_collector = None
+background_tasks = []
 
 # ─────────── Orchestrator Variables ───────────
 
@@ -48,10 +56,13 @@ app = FastAPI(title="EEG Stream Adapter Service")
 @app.on_event("startup")
 async def _start_adapter() -> None:
     # ─────────── Adapter Setup ───────────
-    adapters = []
+    global adapters, execution_orchestrator, metrics_collector, background_tasks
+    stream_config = load_stream_config()
+    token = stream_config['token']
+
     buffer = deque(maxlen=2048)
     disk_queue = DiskQueue("buffer.db")
-    mock_stream = MockEEGStreamReader("ws://localhost:8001/ws")
+    mock_stream = MockEEGStreamReader("ws://localhost:8001/ws?token=" + token)
 
     adapter = StreamAdapter(
         stream=mock_stream,
@@ -63,7 +74,7 @@ async def _start_adapter() -> None:
     )
     adapters.append(adapter)
 
-    mock_stream = MockEEGStreamReader("ws://localhost:8002/ws")
+    mock_stream = MockEEGStreamReader("ws://localhost:8002/ws?token=" + token)
 
     adapter2 = StreamAdapter(
         stream=mock_stream,
@@ -82,22 +93,77 @@ async def _start_adapter() -> None:
     stream_latency_99p.set(0)
     stream_buffer_fill.set(0)
 
-    tasks = []
-    tasks.append(execution_orchestrator.run)
-    tasks.append(metrics_collector.collect_metrics)
+    # Create background tasks
+    background_tasks.clear()
+
+    # Create the orchestrator task
+    orchestrator_task = asyncio.create_task(run_orchestrator_with_shutdown())
+    background_tasks.append(orchestrator_task)
+
+    # Create the metrics collector task
+    metrics_task = asyncio.create_task(run_metrics_with_shutdown())
+    background_tasks.append(metrics_task)
+
+    # Create adapter tasks
     for adapter in adapters:
-        tasks.append(adapter.consume_stream)
+        adapter_task = asyncio.create_task(run_adapter_with_shutdown(adapter))
+        background_tasks.append(adapter_task)
 
-    await asyncio.gather(execution_orchestrator.run(), metrics_collector.collect_metrics(), *[adapter.consume_stream() for adapter in adapters])
+    print("All background tasks started successfully")
 
+@app.on_event("shutdown")
+async def _shutdown_adapter() -> None:
+    """Handle FastAPI shutdown"""
+    print("FastAPI shutdown event triggered")
+    print("Cancelling all background tasks...")
 
+    # Cancel all background tasks
+    for task in background_tasks:
+        if not task.done():
+            task.cancel()
 
-#    asyncio.create_task(execution_orchestrator.run())
- #   for adapter in adapters:
-  #      asyncio.create_task(adapter.consume_stream())
-   # asyncio.create_task(metrics_collector.collect_metrics())
-    # TODO spin off thread for the metrics collector
-    #asyncio.create_task(report_metrics())
+    # Wait for tasks to complete
+    if background_tasks:
+        await asyncio.gather(*background_tasks, return_exceptions=True)
+        print("All background tasks cancelled successfully.")
+
+async def run_orchestrator_with_shutdown():
+    """Run orchestrator with shutdown awareness"""
+    global execution_orchestrator
+    if execution_orchestrator is None:
+        print("Error: execution_orchestrator not initialized")
+        return
+    try:
+        await execution_orchestrator.run()
+    except asyncio.CancelledError:
+        print("Orchestrator task cancelled")
+        execution_orchestrator.stop()
+    except Exception as e:
+        print(f"Orchestrator error: {e}")
+
+async def run_metrics_with_shutdown():
+    """Run metrics collector with shutdown awareness"""
+    global metrics_collector
+    if metrics_collector is None:
+        print("Error: metrics_collector not initialized")
+        return
+    try:
+        await metrics_collector.collect_metrics()
+    except asyncio.CancelledError:
+        print("Metrics collector task cancelled")
+        metrics_collector.stop()
+    except Exception as e:
+        print(f"Metrics collector error: {e}")
+
+async def run_adapter_with_shutdown(adapter):
+    """Run adapter with shutdown awareness"""
+    try:
+        await adapter.consume_stream()
+    except asyncio.CancelledError:
+        print(f"Adapter {adapter.stream_id} task cancelled")
+        adapter.stop()
+    except Exception as e:
+        print(f"Adapter {adapter.stream_id} error: {e}")
 
 # ─────────── Prometheus /metrics Endpoint ───────────
 @app.get("/metrics", response_class=PlainTextResponse)
