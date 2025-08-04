@@ -52,7 +52,7 @@ def generate_packet(seq: int, time: float) -> dict:
     return packet
 
 
-async def generate_packets(packet_queue: asyncio.Queue):
+async def generate_packets(packet_queue: asyncio.Queue, websocket: ServerConnection):
     seq = 0
     try:
         next_time = time.perf_counter()
@@ -64,6 +64,7 @@ async def generate_packets(packet_queue: asyncio.Queue):
                 await packet_queue.put(packet)
                 seq += 1
                 next_time += INTERVAL
+                await websocket.recv()
                 continue
 
             sleep_duration = max(0, next_time - now)
@@ -79,13 +80,13 @@ async def send_packets(websocket: ServerConnection, packet_queue: asyncio.Queue)
         while True:
             packet = await packet_queue.get()
             await websocket.send(json.dumps(packet))
-            #await websocket.recv() # ACKNOWLEDGEMENT RECEIVED HERE
+             # ACKNOWLEDGEMENT RECEIVED HERE
 
 # ────────────────────────────────
 # WebSocket Streaming Logic
 # ────────────────────────────────
 async def run_packet_server(websocket: ServerConnection):
-    packet_queue = asyncio.Queue(1)
+    packet_queue = asyncio.Queue(2)
 
     if websocket.request is None or websocket.request.path is None:
         print("Rejected connection on unexpected path: None")
@@ -100,7 +101,7 @@ async def run_packet_server(websocket: ServerConnection):
     print(f"Client connected at {websocket.request.path}")
 
     try:
-        await asyncio.gather(generate_packets(packet_queue), send_packets(websocket, packet_queue))
+        await asyncio.gather(generate_packets(packet_queue, websocket), send_packets(websocket, packet_queue))
     except (ConnectionClosedOK, ConnectionClosedError):
         print("Client disconnected.")
     except Exception as e:

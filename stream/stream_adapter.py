@@ -188,7 +188,7 @@ class StreamAdapter:
             #     await asyncio.sleep(1 / self.throttle_hz)
 
             # Send acknowledgement to packet source to indicate that it's ready for the next packet
-            #await self.stream.acknowledge_packet()
+            await self.stream.acknowledge_packet()
 
     # Processes a received packet and potentially modifies the metric
     async def _process_packet(self, packet: SignalChunk, metric: Metric, now: float) -> None:
