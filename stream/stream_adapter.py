@@ -32,6 +32,16 @@ from stream.stream_metrics import stream_jitter_ms
 from metrics.metrics_collector import MetricsCollector
 from metrics.main_ingest import MainIngest
 
+# Execution Orchestrator imports
+from stream.execution_orchestrator import ExecutionOrchestrator
+from stream.task_queue import TaskQueue, Task
+from stream.gate_manager import GateManager
+from stream.rollback_handler import RollbackHandler
+from stream.execution_state_machine import ExecutionStateMachine
+from stream.execution_event_bus import ExecutionEventBus
+from stream.violation_handler import ViolationHandler
+from stream.buffer_management_handler import BufferManagementHandler
+
 # ────────────── Configuration ──────────────
 def load_stream_config():
     """Load stream configuration from JSON file"""
@@ -68,6 +78,8 @@ else:
 
 # ────────────── Adapter Class ──────────────
 class StreamAdapter:
+    stream_id: int = 0
+
     def __init__(
         self,
         stream: Optional[ProtocolStreamReaderProtocol] = None,
@@ -77,6 +89,8 @@ class StreamAdapter:
         disk_queue: Optional[DiskQueue] = None,
         throttle_hz: Optional[int] = None,
     ) -> None:
+        self.stream_id = StreamAdapter.stream_id
+        StreamAdapter.stream_id += 1
         self.stream = stream
         self.buffer: Deque[SignalChunk] = buffer or deque(maxlen=buffer_limit)
         self.buffer_limit = buffer_limit
@@ -91,10 +105,38 @@ class StreamAdapter:
         if stream_config['buffer_period']:
             self.buffer_period = stream_config['buffer_period']
 
+        # Initialize execution orchestrator components
+        self.task_queue = TaskQueue()
+        self.gate_manager = GateManager()
+        self.rollback_handler = RollbackHandler()
+        self.state_machine = ExecutionStateMachine()
+        self.event_bus = ExecutionEventBus()
+        self.violation_handler = ViolationHandler(self.rollback_handler)
+
+        # Initialize buffer management handler
+        self.buffer_handler = BufferManagementHandler(self.buffer, self.buffer_limit, self.disk_queue)
+
+        # Initialize execution orchestrator
+        self.orchestrator = ExecutionOrchestrator(
+            task_queue=self.task_queue,
+            gate_manager=self.gate_manager,
+            rollback_handler=self.rollback_handler,
+            state_machine=self.state_machine,
+            event_bus=self.event_bus,
+            violation_handler=self.violation_handler
+        )
+
+        # Start the orchestrator
+        self._orchestrator_task = None
+
     # Iterates through the stream and processes the packets.
     async def consume_stream(self) -> None:
         if self.stream is None:
             raise RuntimeError("StreamAdapter.consume_stream() called with stream=None")
+
+        # Start the execution orchestrator
+        if self._orchestrator_task is None:
+            self._orchestrator_task = asyncio.create_task(self.orchestrator.run())
 
         last_packet_ts = None
         buffer_metric_last_posted_ts = time.time()
@@ -104,6 +146,7 @@ class StreamAdapter:
 
             # Create metric for this packet
             metric = Metric()
+            metric.stream_id = self.stream_id
             metric.drop = self.dropped_packet_count
             metric.ts = datetime.now()
             metric.total = self.total_packets_received
@@ -130,7 +173,7 @@ class StreamAdapter:
             stream_latency_99p.set(p99)
 
             # Process packet and potentially modify metric
-            self._process_packet(packet, metric, now)
+            await self._process_packet(packet, metric, now)
 
             # Collect buffer fill metric.
             buf_pct = len(self.buffer) / self.buffer_limit * 100.0
@@ -149,7 +192,7 @@ class StreamAdapter:
             await self.stream.acknowledge_packet()
 
     # Processes a received packet and potentially modifies the metric
-    def _process_packet(self, packet: SignalChunk, metric: Metric, now: float) -> None:
+    async def _process_packet(self, packet: SignalChunk, metric: Metric, now: float) -> None:
         if self.throttle_hz is None:
             self._warn_drop("Rejected because throttle Hz is not set")
             return
@@ -162,18 +205,21 @@ class StreamAdapter:
             metric.anomaly = True
             return
 
-        # Make room in the boffer, save the popped item to disk
-        if len(self.buffer) >= self.buffer_limit:
-            logger.warning("⚠️ Dropped due to full buffer")
-            oldest = self.buffer.popleft()
-            stream_dropped_packets.inc()
-            if self.disk_queue:
-                asyncio.create_task(self._push_to_disk(oldest))
+        # Create buffer management task for execution orchestrator
+        buffer_task = Task(
+            priority=10,  # High priority for buffer management
+            deadline_ms=100,  # 100ms deadline
+            context={
+                'task_type': 'buffer_management',
+                'packet': packet
+            },
+            handler=self.buffer_handler.handle_buffer_management
+        )
 
-        logger.info("✅ Ingested successfully")
-        self.buffer.append(packet)
+        # Submit task to orchestrator
+        await self.task_queue.push(buffer_task)
 
-        stream_total_ingested.inc()
+        logger.info("✅ Buffer management task submitted to orchestrator")
 
     # Pushes a packet to disk
     async def _push_to_disk(self, pkt: SignalChunk) -> None:

@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List
 
 class Metric:
+    stream_id: int | None = None
     ts: datetime | None = None
     total: int = 0
     buf: float | None = None
@@ -12,6 +13,9 @@ class Metric:
     def to_string(self) -> str:
         delim = " | "
         metrics = []
+
+        if self.stream_id is not None:
+            metrics.append(f"stream_id={self.stream_id}")
 
         if self.ts is not None:
             ts_str = self.ts.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + "Z" if self.ts is not None else "None"
