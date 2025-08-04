@@ -88,7 +88,8 @@ class StreamAdapter:
         buffer_limit: int = 2048,
         disk_queue: Optional[DiskQueue] = None,
         throttle_hz: Optional[int] = None,
-        execution_orchestrator: Optional[ExecutionOrchestrator] = None
+        execution_orchestrator: Optional[ExecutionOrchestrator] = None,
+        task_priority: int = 0
     ) -> None:
         self.stream_id = StreamAdapter.stream_id
         StreamAdapter.stream_id += 1
@@ -106,30 +107,16 @@ class StreamAdapter:
         self.last_ts = 0
         if stream_config['buffer_period']:
             self.buffer_period = stream_config['buffer_period']
-        self.token = stream_config['token']
-        # Initialize execution orchestrator components
-        # self.task_queue = TaskQueue()
-        # self.gate_manager = GateManager()
-        # self.rollback_handler = RollbackHandler()
-        # self.state_machine = ExecutionStateMachine()
-        # self.event_bus = ExecutionEventBus()
-        # self.violation_handler = ViolationHandler(self.rollback_handler)
         self.execution_orchestrator = execution_orchestrator
+
         # Initialize buffer management handler
         self.buffer_handler = BufferManagementHandler(self.buffer, self.buffer_limit, self.disk_queue)
 
-        # # Initialize execution orchestrator
-        # self.orchestrator = ExecutionOrchestrator(
-        #     task_queue=self.task_queue,
-        #     gate_manager=self.gate_manager,
-        #     rollback_handler=self.rollback_handler,
-        #     state_machine=self.state_machine,
-        #     event_bus=self.event_bus,
-        #     violation_handler=self.violation_handler
-        # )
-
         # Start the orchestrator
         self._orchestrator_task = None
+
+        # Initialize task priority
+        self.task_priority = task_priority
 
     def stop(self):
         """Stop the stream adapter"""
@@ -143,7 +130,6 @@ class StreamAdapter:
         # Start the execution orchestrator
         last_packet_ts = None
         buffer_metric_last_posted_ts = time.time()
-        await self.stream.authenticate(self.token)
 
         async for packet in self.stream:
             if not self._running:
@@ -218,7 +204,7 @@ class StreamAdapter:
         self.last_ts = curr_ts
         # Create buffer management task for execution orchestrator
         buffer_task = Task(
-            priority=10,  # High priority for buffer management
+            priority=self.task_priority,  # High priority for buffer management
             deadline_ms=100,  # 100ms deadline
             context={
                 'task_type': 'buffer_management',
@@ -227,12 +213,8 @@ class StreamAdapter:
             handler=self.buffer_handler.handle_buffer_management
         )
 
-        # Submit task to orchestrator
-        if self.execution_orchestrator is not None:
-            await self.execution_orchestrator.task_queue.push(buffer_task)
-
         buffer_append_task = Task(
-            priority=10,  # High priority for buffer management
+            priority=self.task_priority,  # High priority for buffer management
             deadline_ms=100,  # 100ms deadline
             context={
                 'task_type': 'buffer_management',
@@ -241,9 +223,13 @@ class StreamAdapter:
             handler=self.buffer_handler.handle_buffer_append
         )
 
-        # Submit task to orchestrator
+                # Submit task to orchestrator
         if self.execution_orchestrator is not None:
             await self.execution_orchestrator.task_queue.push(buffer_task)
+
+        # Submit task to orchestrator
+        if self.execution_orchestrator is not None:
+            await self.execution_orchestrator.task_queue.push(buffer_append_task)
 
         logger.info("✅ Buffer management task submitted to orchestrator")
 

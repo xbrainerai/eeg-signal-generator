@@ -35,7 +35,7 @@ class TaskQueue:
     async def push(self, task: Task) -> None:
         """Add a task to the queue"""
         #heapq.heappush(self._queue, task)
-        await self._queue.put(task)
+        await self._queue.put((task.priority, task))
         self.size += 1
 
 
@@ -43,10 +43,10 @@ class TaskQueue:
         """Get the next highest priority task"""
         if not self._queue:
             return None
-        retVal = await self._queue.get()
-        self.size += 1
+        priority, task = await self._queue.get()
+        self.size -= 1
 
-        return retVal
+        return task
 
     def depth(self) -> int:
         """Get the current queue depth"""

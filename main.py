@@ -10,6 +10,7 @@ from fastapi.responses import PlainTextResponse
 import uvicorn
 
 from metrics.metrics_collector import MetricsCollector
+from protocol.protocol_stream_file import ProtocolStreamFile
 from stream.stream_adapter import StreamAdapter
 from stream.stream_metrics import (
     stream_buffer_fill,
@@ -70,19 +71,21 @@ async def _start_adapter() -> None:
         disk_queue=disk_queue,
         buffer_limit=2048,
         throttle_hz=256,
-        execution_orchestrator=execution_orchestrator
+        execution_orchestrator=execution_orchestrator,
+        task_priority=3
     )
     adapters.append(adapter)
 
+    #mock_stream = ProtocolStreamFile("protocol/signal.json")
     mock_stream = MockEEGStreamReader("ws://localhost:8002/ws?token=" + token)
-
     adapter2 = StreamAdapter(
         stream=mock_stream,
         buffer=buffer,
         disk_queue=disk_queue,
         buffer_limit=2048,
         throttle_hz=256,
-        execution_orchestrator=execution_orchestrator
+        execution_orchestrator=execution_orchestrator,
+        task_priority=2
     )
     adapters.append(adapter2)
     metrics_collector = MetricsCollector()
