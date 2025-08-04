@@ -101,7 +101,7 @@ class StreamAdapter:
         self._latency_history: list[float] = []
         self.dropped_packet_count = 0
         self.total_packets_received = 0
-
+        self.last_ts = 0
         if stream_config['buffer_period']:
             self.buffer_period = stream_config['buffer_period']
 
@@ -197,14 +197,16 @@ class StreamAdapter:
             self._warn_drop("Rejected because throttle Hz is not set")
             return
 
+        curr_ts = packet.get("timestamp", 0)
         # Checks that the received packet is valid
-        if not validate_frame(packet, self.throttle_hz):
+        if not validate_frame(packet, self.throttle_hz, self.last_ts):
             self._warn_drop("Rejected by validation pipeline")
             self.dropped_packet_count += 1
             metric.drop = self.dropped_packet_count
             metric.anomaly = True
+            self.last_ts = curr_ts
             return
-
+        self.last_ts = curr_ts
         # Create buffer management task for execution orchestrator
         buffer_task = Task(
             priority=10,  # High priority for buffer management
