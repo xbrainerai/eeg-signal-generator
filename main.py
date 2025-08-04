@@ -40,40 +40,38 @@ execution_orchestrator = ExecutionOrchestrator(
     violation_handler=ViolationHandler(rollback_handler=RollbackHandler())
 )
 
-# ─────────── Adapter Setup ───────────
-adapters = []
-buffer = deque(maxlen=2048)
-disk_queue = DiskQueue("buffer.db")
-mock_stream = MockEEGStreamReader("ws://localhost:8001/ws")
-
-adapter = StreamAdapter(
-    stream=mock_stream,
-    buffer=buffer,
-    disk_queue=disk_queue,
-    buffer_limit=2048,
-    throttle_hz=512,
-)
-adapters.append(adapter)
-
-mock_stream = MockEEGStreamReader("ws://localhost:8002/ws")
-
-adapter2 = StreamAdapter(
-    stream=mock_stream,
-    buffer=buffer,
-    disk_queue=disk_queue,
-    buffer_limit=2048,
-    throttle_hz=512,
-)
-adapters.append(adapter2)
-
-metrics_collector = MetricsCollector()
-
 # ─────────── FastAPI App ───────────
 app = FastAPI(title="EEG Stream Adapter Service")
 
 # ─────────── Startup Initialization ───────────
 @app.on_event("startup")
 async def _start_adapter() -> None:
+    # ─────────── Adapter Setup ───────────
+    adapters = []
+    buffer = deque(maxlen=2048)
+    disk_queue = DiskQueue("buffer.db")
+    mock_stream = MockEEGStreamReader("ws://localhost:8001/ws")
+
+    adapter = StreamAdapter(
+        stream=mock_stream,
+        buffer=buffer,
+        disk_queue=disk_queue,
+        buffer_limit=2048,
+        throttle_hz=512,
+    )
+    adapters.append(adapter)
+
+    mock_stream = MockEEGStreamReader("ws://localhost:8002/ws")
+
+    adapter2 = StreamAdapter(
+        stream=mock_stream,
+        buffer=buffer,
+        disk_queue=disk_queue,
+        buffer_limit=2048,
+        throttle_hz=512,
+    )
+    adapters.append(adapter2)
+    metrics_collector = MetricsCollector()
     # Force metric registration (shows up in Prometheus even before increment)
     stream_dropped_packets.inc(0)
     stream_total_ingested.inc(0)
