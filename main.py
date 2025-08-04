@@ -58,6 +58,7 @@ async def _start_adapter() -> None:
         disk_queue=disk_queue,
         buffer_limit=2048,
         throttle_hz=256,
+        execution_orchestrator=execution_orchestrator
     )
     adapters.append(adapter)
 
@@ -69,6 +70,7 @@ async def _start_adapter() -> None:
         disk_queue=disk_queue,
         buffer_limit=2048,
         throttle_hz=256,
+        execution_orchestrator=execution_orchestrator
     )
     adapters.append(adapter2)
     metrics_collector = MetricsCollector()
@@ -79,10 +81,20 @@ async def _start_adapter() -> None:
     stream_latency_99p.set(0)
     stream_buffer_fill.set(0)
 
-    #asyncio.create_task(execution_orchestrator.run())
+    tasks = []
+    tasks.append(execution_orchestrator.run)
+    tasks.append(metrics_collector.collect_metrics)
     for adapter in adapters:
-        asyncio.create_task(adapter.consume_stream())
-    asyncio.create_task(metrics_collector.collect_metrics())
+        tasks.append(adapter.consume_stream)
+
+    await asyncio.gather(execution_orchestrator.run(), metrics_collector.collect_metrics(), *[adapter.consume_stream() for adapter in adapters])
+
+
+
+#    asyncio.create_task(execution_orchestrator.run())
+ #   for adapter in adapters:
+  #      asyncio.create_task(adapter.consume_stream())
+   # asyncio.create_task(metrics_collector.collect_metrics())
     # TODO spin off thread for the metrics collector
     #asyncio.create_task(report_metrics())
 

@@ -75,14 +75,17 @@ async def generate_packets(packet_queue: asyncio.Queue):
     except Exception as e:
         print(f"Unexpected error: {e}")
 
-
+async def send_packets(websocket: ServerConnection, packet_queue: asyncio.Queue):
+        while True:
+            packet = await packet_queue.get()
+            await websocket.send(json.dumps(packet))
+            #await websocket.recv() # ACKNOWLEDGEMENT RECEIVED HERE
 
 # ────────────────────────────────
 # WebSocket Streaming Logic
 # ────────────────────────────────
-async def send_packets(websocket: ServerConnection):
-    packet_queue = asyncio.Queue(2)
-    asyncio.create_task(generate_packets(packet_queue))
+async def run_packet_server(websocket: ServerConnection):
+    packet_queue = asyncio.Queue(1)
 
     if websocket.request is None or websocket.request.path is None:
         print("Rejected connection on unexpected path: None")
@@ -97,11 +100,7 @@ async def send_packets(websocket: ServerConnection):
     print(f"Client connected at {websocket.request.path}")
 
     try:
-        while True:
-            packet = await packet_queue.get()
-            await websocket.send(json.dumps(packet))
-            #await websocket.recv() # ACKNOWLEDGEMENT RECEIVED HERE
-
+        await asyncio.gather(generate_packets(packet_queue), send_packets(websocket, packet_queue))
     except (ConnectionClosedOK, ConnectionClosedError):
         print("Client disconnected.")
     except Exception as e:
@@ -112,7 +111,7 @@ async def send_packets(websocket: ServerConnection):
 # ────────────────────────────────
 async def main():
     print(f"✅ Mock EEG WebSocket server running at ws://localhost:{PORT}{ENDPOINT_PATH}")
-    async with serve(send_packets, "localhost", PORT):
+    async with serve(run_packet_server, "localhost", PORT):
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":

@@ -88,6 +88,7 @@ class StreamAdapter:
         buffer_limit: int = 2048,
         disk_queue: Optional[DiskQueue] = None,
         throttle_hz: Optional[int] = None,
+        execution_orchestrator: Optional[ExecutionOrchestrator] = None,
     ) -> None:
         self.stream_id = StreamAdapter.stream_id
         StreamAdapter.stream_id += 1
@@ -106,25 +107,25 @@ class StreamAdapter:
             self.buffer_period = stream_config['buffer_period']
 
         # Initialize execution orchestrator components
-        self.task_queue = TaskQueue()
-        self.gate_manager = GateManager()
-        self.rollback_handler = RollbackHandler()
-        self.state_machine = ExecutionStateMachine()
-        self.event_bus = ExecutionEventBus()
-        self.violation_handler = ViolationHandler(self.rollback_handler)
-
+        # self.task_queue = TaskQueue()
+        # self.gate_manager = GateManager()
+        # self.rollback_handler = RollbackHandler()
+        # self.state_machine = ExecutionStateMachine()
+        # self.event_bus = ExecutionEventBus()
+        # self.violation_handler = ViolationHandler(self.rollback_handler)
+        self.execution_orchestrator = execution_orchestrator
         # Initialize buffer management handler
         self.buffer_handler = BufferManagementHandler(self.buffer, self.buffer_limit, self.disk_queue)
 
-        # Initialize execution orchestrator
-        self.orchestrator = ExecutionOrchestrator(
-            task_queue=self.task_queue,
-            gate_manager=self.gate_manager,
-            rollback_handler=self.rollback_handler,
-            state_machine=self.state_machine,
-            event_bus=self.event_bus,
-            violation_handler=self.violation_handler
-        )
+        # # Initialize execution orchestrator
+        # self.orchestrator = ExecutionOrchestrator(
+        #     task_queue=self.task_queue,
+        #     gate_manager=self.gate_manager,
+        #     rollback_handler=self.rollback_handler,
+        #     state_machine=self.state_machine,
+        #     event_bus=self.event_bus,
+        #     violation_handler=self.violation_handler
+        # )
 
         # Start the orchestrator
         self._orchestrator_task = None
@@ -135,8 +136,6 @@ class StreamAdapter:
             raise RuntimeError("StreamAdapter.consume_stream() called with stream=None")
 
         # Start the execution orchestrator
-        if self._orchestrator_task is None:
-            self._orchestrator_task = asyncio.create_task(self.orchestrator.run())
 
         last_packet_ts = None
         buffer_metric_last_posted_ts = time.time()
@@ -189,7 +188,7 @@ class StreamAdapter:
             #     await asyncio.sleep(1 / self.throttle_hz)
 
             # Send acknowledgement to packet source to indicate that it's ready for the next packet
-            await self.stream.acknowledge_packet()
+            #await self.stream.acknowledge_packet()
 
     # Processes a received packet and potentially modifies the metric
     async def _process_packet(self, packet: SignalChunk, metric: Metric, now: float) -> None:
@@ -219,7 +218,8 @@ class StreamAdapter:
         )
 
         # Submit task to orchestrator
-        await self.task_queue.push(buffer_task)
+        if self.execution_orchestrator is not None:
+            await self.execution_orchestrator.task_queue.push(buffer_task)
 
         buffer_append_task = Task(
             priority=10,  # High priority for buffer management
@@ -231,7 +231,9 @@ class StreamAdapter:
             handler=self.buffer_handler.handle_buffer_append
         )
 
-        await self.task_queue.push(buffer_append_task)
+        # Submit task to orchestrator
+        if self.execution_orchestrator is not None:
+            await self.execution_orchestrator.task_queue.push(buffer_task)
 
         logger.info("✅ Buffer management task submitted to orchestrator")
 
