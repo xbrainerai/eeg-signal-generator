@@ -21,9 +21,28 @@ from stream.stream_metrics import (
 from stream.disk_queue import DiskQueue
 from prometheus_client import generate_latest  # Prometheus metrics
 from protocol.protocol_stream_mock import MockEEGStreamReader
+from stream.execution_orchestrator import ExecutionOrchestrator
+from stream.task_queue import TaskQueue
+from stream.gate_manager import GateManager
+from stream.rollback_handler import RollbackHandler
+from stream.execution_state_machine import ExecutionStateMachine
+from stream.execution_event_bus import ExecutionEventBus
+from stream.violation_handler import ViolationHandler
+
+# ─────────── Orchestrator Variables ───────────
+
+execution_orchestrator = ExecutionOrchestrator(
+    task_queue=TaskQueue(),
+    gate_manager=GateManager(),
+    rollback_handler=RollbackHandler(),
+    state_machine=ExecutionStateMachine(),
+    event_bus=ExecutionEventBus(),
+    violation_handler=ViolationHandler(rollback_handler=RollbackHandler())
+)
 
 # ─────────── Adapter Setup ───────────
-buffer = deque(maxlen=3)
+adapters = []
+buffer = deque(maxlen=2048)
 disk_queue = DiskQueue("buffer.db")
 mock_stream = MockEEGStreamReader("ws://localhost:8001/ws")
 
@@ -34,6 +53,18 @@ adapter = StreamAdapter(
     buffer_limit=2048,
     throttle_hz=512,
 )
+adapters.append(adapter)
+
+mock_stream = MockEEGStreamReader("ws://localhost:8002/ws")
+
+adapter2 = StreamAdapter(
+    stream=mock_stream,
+    buffer=buffer,
+    disk_queue=disk_queue,
+    buffer_limit=2048,
+    throttle_hz=512,
+)
+adapters.append(adapter2)
 
 metrics_collector = MetricsCollector()
 
@@ -50,7 +81,8 @@ async def _start_adapter() -> None:
     stream_latency_99p.set(0)
     stream_buffer_fill.set(0)
 
-    asyncio.create_task(adapter.consume_stream())
+    for adapter in adapters:
+        asyncio.create_task(adapter.consume_stream())
     asyncio.create_task(metrics_collector.collect_metrics())
     # TODO spin off thread for the metrics collector
     #asyncio.create_task(report_metrics())

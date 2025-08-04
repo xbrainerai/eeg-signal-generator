@@ -2,16 +2,26 @@ import asyncio
 import json
 import random
 import time
+import argparse
 from websockets import ServerConnection, serve
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 
 # ────────────────────────────────
 # Configuration
 # ────────────────────────────────
-PORT = 8001
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Mock EEG WebSocket Server')
+    parser.add_argument('--port', type=int, default=8001, help='Port to run the server on (default: 8001)')
+    parser.add_argument('--packet-rate', type=int, default=512, help='Packet rate in Hz (default: 512)')
+    parser.add_argument('--channel-count', type=int, default=8, help='Number of EEG channels (default: 8)')
+    return parser.parse_args()
+
+args = parse_arguments()
+PORT = args.port
+PACKET_RATE_HZ = args.packet_rate
+CHANNEL_COUNT = args.channel_count  # Match validation rule
+
 ENDPOINT_PATH = "/ws"
-PACKET_RATE_HZ = 512
-CHANNEL_COUNT = 8  # Match validation rule
 CLOCK_RESOLUTION = 0.015 # 15ms
 INTERVAL = 1.0 / PACKET_RATE_HZ
 # ────────────────────────────────
