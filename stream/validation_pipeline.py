@@ -31,7 +31,6 @@ def validate_frame(frame, frequency: float, last_ts: float):
             stream_jitter_ms.observe(jitter_ms)
             stream_jitter_hist_ms.observe(jitter_ms)
             if not is_timestamp_monotonic(curr_ts, last_ts, frequency):
-                last_ts = curr_ts
                 raise ValueError("Timestamp jitter/skew")
 
         return True

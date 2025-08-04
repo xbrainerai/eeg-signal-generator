@@ -28,21 +28,26 @@ class TaskQueue:
     """Manages tasks with priority and deadline ordering"""
 
     def __init__(self):
-        self._queue = []
+        self._queue = asyncio.PriorityQueue()
         self._lock = asyncio.Lock()
+        self.size = 0
 
     async def push(self, task: Task) -> None:
         """Add a task to the queue"""
-        async with self._lock:
-            heapq.heappush(self._queue, task)
+        #heapq.heappush(self._queue, task)
+        await self._queue.put(task)
+        self.size += 1
+
 
     async def pop_next(self) -> Optional[Task]:
         """Get the next highest priority task"""
-        async with self._lock:
-            if not self._queue:
-                return None
-            return heapq.heappop(self._queue)
+        if not self._queue:
+            return None
+        retVal = await self._queue.get()
+        self.size += 1
+
+        return retVal
 
     def depth(self) -> int:
         """Get the current queue depth"""
-        return len(self._queue)
+        return self.size

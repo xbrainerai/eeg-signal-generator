@@ -12,7 +12,7 @@ from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Mock EEG WebSocket Server')
     parser.add_argument('--port', type=int, default=8001, help='Port to run the server on (default: 8001)')
-    parser.add_argument('--packet-rate', type=int, default=512, help='Packet rate in Hz (default: 512)')
+    parser.add_argument('--packet-rate', type=int, default=256, help='Packet rate in Hz (default: 512)')
     parser.add_argument('--channel-count', type=int, default=8, help='Number of EEG channels (default: 8)')
     return parser.parse_args()
 
@@ -51,10 +51,38 @@ def generate_packet(seq: int, time: float) -> dict:
 
     return packet
 
+
+async def generate_packets(packet_queue: asyncio.Queue):
+    seq = 0
+    try:
+        next_time = time.perf_counter()
+        while True:
+            now = time.perf_counter()
+            if now >= next_time:
+                timestamp = time.time()
+                packet = generate_packet(seq, timestamp)
+                await packet_queue.put(packet)
+                seq += 1
+                next_time += INTERVAL
+                continue
+
+            sleep_duration = max(0, next_time - now)
+            if (sleep_duration > CLOCK_RESOLUTION):
+                await asyncio.sleep(sleep_duration)
+
+    except (ConnectionClosedOK, ConnectionClosedError):
+        print("Client disconnected.")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+
+
+
 # ────────────────────────────────
 # WebSocket Streaming Logic
 # ────────────────────────────────
-async def stream_packets(websocket: ServerConnection):
+async def send_packets(websocket: ServerConnection):
+    packet_queue = asyncio.Queue(2)
+    asyncio.create_task(generate_packets(packet_queue))
 
     if websocket.request is None or websocket.request.path is None:
         print("Rejected connection on unexpected path: None")
@@ -67,24 +95,12 @@ async def stream_packets(websocket: ServerConnection):
         return
 
     print(f"Client connected at {websocket.request.path}")
-    seq = 0
 
     try:
-        next_time = time.perf_counter()
         while True:
-            now = time.perf_counter()
-            if now >= next_time:
-                timestamp = time.time()
-                packet = generate_packet(seq, timestamp)
-                await websocket.send(json.dumps(packet))
-                seq += 1
-                next_time += INTERVAL
-                received_packet = await websocket.recv()
-                continue
-
-            sleep_duration = max(0, next_time - now)
-            if (sleep_duration > CLOCK_RESOLUTION):
-                await asyncio.sleep(sleep_duration)
+            packet = await packet_queue.get()
+            await websocket.send(json.dumps(packet))
+            #await websocket.recv() # ACKNOWLEDGEMENT RECEIVED HERE
 
     except (ConnectionClosedOK, ConnectionClosedError):
         print("Client disconnected.")
@@ -96,7 +112,7 @@ async def stream_packets(websocket: ServerConnection):
 # ────────────────────────────────
 async def main():
     print(f"✅ Mock EEG WebSocket server running at ws://localhost:{PORT}{ENDPOINT_PATH}")
-    async with serve(stream_packets, "localhost", PORT):
+    async with serve(send_packets, "localhost", PORT):
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":

@@ -185,8 +185,8 @@ class StreamAdapter:
             self.main_ingest.add_to_stream_adapter_metrics_processing_queue(metric)
 
             # Throttle if buffer is full
-            if self.throttle_hz and buf_pct > 90:
-                await asyncio.sleep(1 / self.throttle_hz)
+            # if self.throttle_hz and buf_pct > 90:
+            #     await asyncio.sleep(1 / self.throttle_hz)
 
             # Send acknowledgement to packet source to indicate that it's ready for the next packet
             await self.stream.acknowledge_packet()
@@ -220,6 +220,18 @@ class StreamAdapter:
 
         # Submit task to orchestrator
         await self.task_queue.push(buffer_task)
+
+        buffer_append_task = Task(
+            priority=10,  # High priority for buffer management
+            deadline_ms=100,  # 100ms deadline
+            context={
+                'task_type': 'buffer_management',
+                'packet': packet
+            },
+            handler=self.buffer_handler.handle_buffer_append
+        )
+
+        await self.task_queue.push(buffer_append_task)
 
         logger.info("✅ Buffer management task submitted to orchestrator")
 
