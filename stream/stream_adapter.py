@@ -88,7 +88,7 @@ class StreamAdapter:
         buffer_limit: int = 2048,
         disk_queue: Optional[DiskQueue] = None,
         throttle_hz: Optional[int] = None,
-        execution_orchestrator: Optional[ExecutionOrchestrator] = None,
+        execution_orchestrator: Optional[ExecutionOrchestrator] = None
     ) -> None:
         self.stream_id = StreamAdapter.stream_id
         StreamAdapter.stream_id += 1
@@ -105,7 +105,7 @@ class StreamAdapter:
         self.last_ts = 0
         if stream_config['buffer_period']:
             self.buffer_period = stream_config['buffer_period']
-
+        self.token = stream_config['token']
         # Initialize execution orchestrator components
         # self.task_queue = TaskQueue()
         # self.gate_manager = GateManager()
@@ -136,9 +136,10 @@ class StreamAdapter:
             raise RuntimeError("StreamAdapter.consume_stream() called with stream=None")
 
         # Start the execution orchestrator
-
         last_packet_ts = None
         buffer_metric_last_posted_ts = time.time()
+        await self.stream.authenticate(self.token)
+
         async for packet in self.stream:
             self.total_packets_received += 1
             logger.info("📥 Received from WebSocket: %s", packet)

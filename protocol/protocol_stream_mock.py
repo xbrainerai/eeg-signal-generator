@@ -49,3 +49,7 @@ class MockEEGStreamReader(ProtocolStreamReaderProtocol):
     async def acknowledge_packet(self) -> None:
         if self.ws is not None:
             await self.ws.send("ACK")
+
+    async def authenticate(self, token: str) -> None:
+        if self.ws is not None:
+            await self.ws.send(json.dumps({"token": token}))

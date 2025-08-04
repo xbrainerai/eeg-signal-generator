@@ -1,3 +1,8 @@
+import sys
+import os
+# Add the project root to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import asyncio
 import json
 import random
@@ -5,6 +10,7 @@ import time
 import argparse
 from websockets import ServerConnection, serve
 from websockets.exceptions import ConnectionClosedOK, ConnectionClosedError
+from auth.mock_authenticator import MockAuthenticator
 
 # ────────────────────────────────
 # Configuration
@@ -17,6 +23,8 @@ def parse_arguments():
     return parser.parse_args()
 
 args = parse_arguments()
+authenticator = MockAuthenticator()
+
 PORT = args.port
 PACKET_RATE_HZ = args.packet_rate
 CHANNEL_COUNT = args.channel_count  # Match validation rule
@@ -86,6 +94,13 @@ async def send_packets(websocket: ServerConnection, packet_queue: asyncio.Queue)
 # WebSocket Streaming Logic
 # ────────────────────────────────
 async def run_packet_server(websocket: ServerConnection):
+    auth_msg = await websocket.recv()
+    auth_token = json.loads(auth_msg)
+
+    if not authenticator.authenticate(auth_token["token"]):
+        await websocket.close()
+        return
+
     packet_queue = asyncio.Queue(2)
 
     if websocket.request is None or websocket.request.path is None:
