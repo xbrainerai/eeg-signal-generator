@@ -59,22 +59,22 @@ if not logging.getLogger().handlers:
     logging.basicConfig(
         filename="logs/stream_debug.log",
         level=logging.DEBUG,
-        format="%(asctime)s [%(levelname)s] %(message)s",
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-# Create logger for stream adapter
-logger = logging.getLogger('stream_adapter')
+# Create base logger for stream adapter
+base_logger = logging.getLogger('stream_adapter')
 if _verbose_enabled:
-    logger.setLevel(logging.INFO)
+    base_logger.setLevel(logging.INFO)
     # Add console handler for verbose output
-    if not logger.handlers:
+    if not base_logger.handlers:
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(message)s')  # Simple format for console
+        formatter = logging.Formatter('%(name)s: %(message)s')  # Include logger name in console output
         console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+        base_logger.addHandler(console_handler)
 else:
-    logger.setLevel(logging.WARNING)
+    base_logger.setLevel(logging.WARNING)
 
 # ────────────── Adapter Class ──────────────
 class StreamAdapter:
@@ -93,6 +93,14 @@ class StreamAdapter:
     ) -> None:
         self.stream_id = StreamAdapter.stream_id
         StreamAdapter.stream_id += 1
+
+        # Create logger with stream_id
+        self.logger = logging.getLogger(f'stream_adapter.{self.stream_id}')
+        self.logger.setLevel(base_logger.level)
+        # Copy handlers from base logger
+        for handler in base_logger.handlers:
+            self.logger.addHandler(handler)
+
         self.stream = stream
         self.buffer: Deque[SignalChunk] = buffer or deque(maxlen=buffer_limit)
         self.buffer_limit = buffer_limit
@@ -133,11 +141,11 @@ class StreamAdapter:
 
         async for packet in self.stream:
             if not self._running:
-                logger.info(f"Stream adapter {self.stream_id} stopping")
+                self.logger.info(f"Stream adapter {self.stream_id} stopping")
                 break
 
             self.total_packets_received += 1
-            logger.info("📥 Received from WebSocket: %s", packet)
+            self.logger.info("📥 Received from WebSocket: %s", packet)
 
             # Create metric for this packet
             metric = Metric()
@@ -231,7 +239,7 @@ class StreamAdapter:
         if self.execution_orchestrator is not None:
             await self.execution_orchestrator.task_queue.push(buffer_append_task)
 
-        logger.info("✅ Buffer management task submitted to orchestrator")
+        self.logger.info("✅ Buffer management task submitted to orchestrator")
 
     # Pushes a packet to disk
     async def _push_to_disk(self, pkt: SignalChunk) -> None:
