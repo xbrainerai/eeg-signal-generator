@@ -1,5 +1,6 @@
 import asyncio
 import heapq
+import logging
 import uuid
 from dataclasses import dataclass, field
 from typing import Optional, Callable, Any
@@ -16,12 +17,16 @@ class Task:
     handler: Callable = None
     retry_delay: float = 0.1  # Delay before retry if gate is closed
     created_at: datetime = field(default_factory=datetime.now)
+    logger_id: str = 'stream_adapter'
 
     def __lt__(self, other):
         # Priority first, then deadline (earlier deadline = higher priority)
         if self.priority != other.priority:
             return self.priority > other.priority
         return self.deadline_ms < other.deadline_ms
+
+    def get_logger(self) -> logging.Logger:
+        return logging.getLogger(self.logger_id)
 
 
 class TaskQueue:

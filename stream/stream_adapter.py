@@ -95,7 +95,8 @@ class StreamAdapter:
         StreamAdapter.stream_id += 1
 
         # Create logger with stream_id
-        self.logger = logging.getLogger(f'stream_adapter.{self.stream_id}')
+        self.logger_id = f'stream_adapter.{self.stream_id}'
+        self.logger = logging.getLogger(self.logger_id)
         self.logger.setLevel(base_logger.level)
         # Copy handlers from base logger
         for handler in base_logger.handlers:
@@ -218,7 +219,8 @@ class StreamAdapter:
                 'task_type': 'buffer_management',
                 'packet': packet
             },
-            handler=self.buffer_handler.handle_buffer_management
+            handler=self.buffer_handler.handle_buffer_management,
+            logger_id=self.logger_id
         )
 
         buffer_append_task = Task(
@@ -228,7 +230,8 @@ class StreamAdapter:
                 'task_type': 'buffer_management',
                 'packet': packet
             },
-            handler=self.buffer_handler.handle_buffer_append
+            handler=self.buffer_handler.handle_buffer_append,
+            logger_id=self.logger_id
         )
 
                 # Submit task to orchestrator

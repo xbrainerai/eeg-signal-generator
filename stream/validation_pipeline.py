@@ -3,7 +3,7 @@ import logging
 from stream.validators import *
 from stream.stream_metrics import validation_failures, stream_jitter_ms, stream_jitter_hist_ms
 
-logger = logging.getLogger("validation")
+logger = logging.getLogger('stream_adapter')
 logger.setLevel(logging.WARNING)
 
 DROP_MALFORMED = True
@@ -15,13 +15,13 @@ _last_ts = None
 def validate_frame(frame, frequency: float, last_ts: float):
     try:
         if not has_required_fields(frame):
-            raise ValueError("Missing required fields")
+            raise ValueError(f"Frame {frame['packet_id']} Missing required fields -> dropped")
 
         if not is_channel_count_valid(frame):
-            raise ValueError("Invalid channel count")
+            raise ValueError(f"Frame {frame['packet_id']} Invalid channel count -> dropped")
 
         if not is_value_range_valid(frame):
-            raise ValueError("Out-of-range µV values")
+            raise ValueError(f"Frame {frame['packet_id']} Out-of-range µV values -> dropped {frame.get("values", [])}")
 
         curr_ts = frame["timestamp"]
 
@@ -31,7 +31,7 @@ def validate_frame(frame, frequency: float, last_ts: float):
             stream_jitter_ms.observe(jitter_ms)
             stream_jitter_hist_ms.observe(jitter_ms)
             if not is_timestamp_monotonic(curr_ts, last_ts, frequency):
-                raise ValueError("Timestamp jitter/skew")
+                raise ValueError(f"Frame {frame['packet_id']} Timestamp jitter/skew -> dropped")
 
         return True
 

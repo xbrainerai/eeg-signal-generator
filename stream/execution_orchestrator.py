@@ -27,7 +27,7 @@ class ExecutionOrchestrator:
         self.state_machine = state_machine
         self.event_bus = event_bus
         self.violation_handler = violation_handler
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger('stream_adapter')
         self._running = False
 
     async def run(self):
@@ -36,20 +36,24 @@ class ExecutionOrchestrator:
         self.logger.info("Starting ExecutionOrchestrator")
 
         while self._running:
+            logger = self.logger
             try:
                 # Update queue depth metric
                 queue_depth.set(self.task_queue.depth())
 
                 # Get next task
                 task = await self.task_queue.pop_next()
+
                 if task is None:
                     # No tasks available, yield control and continue
                     await asyncio.sleep(0.001)  # Small delay to prevent busy waiting
                     continue
 
+                logger = task.get_logger()
+
                 # Check if task is allowed to execute
                 if not self.gate_manager.allow(task):
-                    self.logger.debug(f"Task {task.id} blocked by gate, retrying in {task.retry_delay}s")
+                    logger.info(f"Task {task.id} blocked by gate, retrying in {task.retry_delay}s")
                     await asyncio.sleep(task.retry_delay)
                     # Re-queue the task
                     await self.task_queue.push(task)
@@ -72,7 +76,7 @@ class ExecutionOrchestrator:
                     self.state_machine.update(task, 'complete')
                     await self.event_bus.publish('task_completed', task.id)
 
-                    self.logger.debug(f"Task {task.id} completed successfully in {duration:.2f}ms")
+                    logger.info(f"Task {task.id} completed successfully in {duration:.2f}ms")
 
                 except asyncio.TimeoutError:
                     duration = (time.perf_counter() - start) * 1000
