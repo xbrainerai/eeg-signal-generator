@@ -13,7 +13,6 @@ class MetricsCollector:
 
     def __init__(self):
         self.main_ingest = MainIngest()
-        # self.outputs: list[MetricOutput] = [MetricLoggerOutput(), MetricLoggerFile()]
         log_config = json.load(open('metrics/logger_config.json'))
         self.outputs: list[MetricOutput] = []
         if log_config['log_to_console']:
@@ -23,6 +22,7 @@ class MetricsCollector:
         if log_config.get('log_to_websocket', False):
             self.outputs.append(MetricLoggerWS())
         self._running = True
+        self.metrics_collected = 0
 
     def stop(self):
         """Stop the metrics collector"""
@@ -32,6 +32,7 @@ class MetricsCollector:
         while self._running:
             try:
                 metric = await self.main_ingest.process_and_next_metric()
+                self.metrics_collected += 1
                 for output in self.outputs:
                     output.output(metric)
             except asyncio.CancelledError:

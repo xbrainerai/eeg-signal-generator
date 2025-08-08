@@ -89,7 +89,9 @@ class StreamAdapter:
         disk_queue: Optional[DiskQueue] = None,
         throttle_hz: Optional[int] = None,
         execution_orchestrator: Optional[ExecutionOrchestrator] = None,
-        task_priority: int = 0
+        task_priority: int = 0,
+        buffer_period: float | None = None,
+        should_always_log_buffer: bool = False
     ) -> None:
         self.stream_id = StreamAdapter.stream_id
         StreamAdapter.stream_id += 1
@@ -114,8 +116,12 @@ class StreamAdapter:
         self.dropped_packet_count = 0
         self.total_packets_received = 0
         self.last_ts = 0
-        if stream_config['buffer_period']:
+        self.should_always_log_buffer = should_always_log_buffer
+        if buffer_period is not None:
+            self.buffer_period = buffer_period
+        elif stream_config['buffer_period']:
             self.buffer_period = stream_config['buffer_period']
+
         self.execution_orchestrator = execution_orchestrator
 
         # Initialize buffer management handler
@@ -181,7 +187,7 @@ class StreamAdapter:
 
             # Collect buffer fill metric.
             buf_pct = len(self.buffer) / self.buffer_limit * 100.0
-            if self.buffer_period is not None and now - buffer_metric_last_posted_ts > self.buffer_period:
+            if (self.buffer_period is not None and now - buffer_metric_last_posted_ts > self.buffer_period) or self.should_always_log_buffer:
                 metric.buf = buf_pct
                 buffer_metric_last_posted_ts = time.time()
 

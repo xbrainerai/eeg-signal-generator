@@ -28,3 +28,6 @@ class MainIngest:
                 if len(self.stream_adapter_metrics_processing_queue) > 0:
                     return self.stream_adapter_metrics_processing_queue.pop(0)
             await asyncio.sleep(0.01)
+
+    def has_next_metric_to_process(self):
+        return len(self.stream_adapter_metrics_processing_queue) > 0

@@ -5,10 +5,11 @@ import pytest
 from httpx import AsyncClient
 
 from stream.stream_adapter import StreamAdapter
-from stream.stream_metrics import MetricsHandler
+from src.stream_metrics import MetricsHandler
 
 from stream.disk_queue import DiskQueue
 from main import app  # FastAPI app with /metrics
+from unittest.mock import Mock
 
 class MockStream:
     """Async iterator emitting 200 packets with burst & silence patterns."""
