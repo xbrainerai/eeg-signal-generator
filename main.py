@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 import datetime
 import signal
@@ -38,6 +39,8 @@ adapters = []
 execution_orchestrator = None
 metrics_collector = None
 background_tasks = []
+sources = []
+parsed_args = None
 
 # ─────────── Orchestrator Variables ───────────
 
@@ -53,41 +56,70 @@ execution_orchestrator = ExecutionOrchestrator(
 # ─────────── FastAPI App ───────────
 app = FastAPI(title="EEG Stream Adapter Service")
 
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description="EEG Stream Adapter Service")
+    parser.add_argument(
+        "--source",
+        nargs="+",
+        help="Source addresses or file paths. WebSocket addresses (ws://...) or file paths (.json)"
+    )
+    return parser.parse_args()
+
+def create_protocol_reader(source: str, token: str = ""):
+    """Create appropriate protocol reader based on source type"""
+    if source.startswith("ws://") or source.startswith("wss://"):
+        # WebSocket address - use MockEEGStreamReader
+        if token and "?" not in source:
+            source = f"{source}/ws?token={token}"
+            print("using source: ", source)
+        return MockEEGStreamReader(source)
+    else:
+        print("making file reader.")
+        # File path - use ProtocolStreamFile
+        return ProtocolStreamFile(source)
+
 # ─────────── Startup Initialization ───────────
 @app.on_event("startup")
 async def _start_adapter() -> None:
+    print("parsing arguments    ")
+    parsed_args = parse_arguments()
     # ─────────── Adapter Setup ───────────
-    global adapters, execution_orchestrator, metrics_collector, background_tasks
+    global adapters, execution_orchestrator, metrics_collector, background_tasks, sources
     stream_config = load_stream_config()
     token = stream_config['token']
 
     buffer = deque(maxlen=2048)
     disk_queue = DiskQueue("buffer.db")
-    mock_stream = MockEEGStreamReader("ws://localhost:8001/ws?token=" + token)
+    print(f"parsed_args: {parsed_args}")
+    print(f"parsed_args.source: {parsed_args.source if parsed_args else 'None'}")
+    # Use parsed arguments from main
+    if parsed_args and parsed_args.source:
+        # Use command line sources
+        sources = parsed_args.source
+    else:
+        # Default sources (fallback to original behavior)
+        sources = [
+            "ws://localhost:8001/ws?token=" + token,
+            "ws://localhost:8002/ws?token=" + token
+        ]
 
-    adapter = StreamAdapter(
-        stream=mock_stream,
-        buffer=buffer,
-        disk_queue=disk_queue,
-        buffer_limit=2048,
-        throttle_hz=256,
-        execution_orchestrator=execution_orchestrator,
-        task_priority=3
-    )
-    adapters.append(adapter)
+    # Create adapters for each source
+    for i, source in enumerate(sources):
+        protocol_reader = create_protocol_reader(source, token)
 
-    #mock_stream = ProtocolStreamFile("protocol/signal.json")
-    mock_stream = MockEEGStreamReader("ws://localhost:8002/ws?token=" + token)
-    adapter2 = StreamAdapter(
-        stream=mock_stream,
-        buffer=buffer,
-        disk_queue=disk_queue,
-        buffer_limit=2048,
-        throttle_hz=256,
-        execution_orchestrator=execution_orchestrator,
-        task_priority=2
-    )
-    adapters.append(adapter2)
+        adapter = StreamAdapter(
+            stream=protocol_reader,
+            buffer=buffer,
+            disk_queue=disk_queue,
+            buffer_limit=2048,
+            throttle_hz=256,
+            execution_orchestrator=execution_orchestrator,
+            task_priority=i  # Lower priority for earlier sources
+        )
+        adapters.append(adapter)
+        print(f"Created adapter for source: {source}")
+
     metrics_collector = MetricsCollector()
     # Force metric registration (shows up in Prometheus even before increment)
     stream_dropped_packets.inc(0)
@@ -175,4 +207,5 @@ async def _metrics() -> str:
 
 # ─────────── Run Uvicorn ───────────
 if __name__ == "__main__":
+    # Parse arguments before starting uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=False)
