@@ -39,7 +39,7 @@ async def test_burst_and_silence_handling():
     buffer = deque(maxlen=512)
     metrics = MetricsHandler()
     stream = MockStream(burst=True)
-    adapter = StreamAdapter(stream=stream, buffer=buffer, metrics=metrics)
+    adapter = StreamAdapter(buffer=buffer)
     await adapter.consume_stream()
     assert metrics.buffer_fill_pct > 0
     assert metrics.latency_list, "Latency list should not be empty"
@@ -55,7 +55,7 @@ async def test_disk_queue_roundtrip(tmp_path):
 
 @pytest.mark.asyncio
 async def test_metrics_endpoint():
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(base_url="http://test") as ac:
         res = await ac.get("/metrics", headers={"x-api-key": "supersecretkey"})
         assert res.status_code == 200
         assert "stream_latency_99p" in res.text

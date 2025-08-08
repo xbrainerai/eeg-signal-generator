@@ -1,6 +1,5 @@
 import pytest
-from packet_timestamp_validator.timestamp_validator import DefaultTimestampValidator
-from packet_timestamp_validator.validation_result import ValidationStatus
+from src.packet_timestamp_validator.timestamp_validator import DefaultTimestampValidator, ValidationStatus
 
 @pytest.fixture
 def config():
