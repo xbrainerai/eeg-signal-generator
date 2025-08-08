@@ -21,7 +21,9 @@ def parse_arguments():
     parser.add_argument('--port', type=int, default=8001, help='Port to run the server on (default: 8001)')
     parser.add_argument('--packet-rate', type=int, default=256, help='Packet rate in Hz (default: 512)')
     parser.add_argument('--channel-count', type=int, default=8, help='Number of EEG channels (default: 8)')
-    parser.add_argument('--require-auth', action='store_true', default=True, help='Require authentication token (default: True)')
+    parser.add_argument('--no-auth', action='store_true', help='Disable authentication (default: authentication required)')
+    parser.add_argument('--simulate-out-of-range', action='store_true', help='Simulate out-of-range values (default: False)')
+    parser.add_argument('--simulate-missing-timestamp', action='store_true', help='Simulate missing timestamp (default: False)')
     return parser.parse_args()
 
 args = parse_arguments()
@@ -30,8 +32,9 @@ authenticator = MockAuthenticator()
 PORT = args.port
 PACKET_RATE_HZ = args.packet_rate
 CHANNEL_COUNT = args.channel_count  # Match validation rule
-REQUIRE_AUTH = args.require_auth
-
+REQUIRE_AUTH = not args.no_auth
+SIMULATE_OUT_OF_RANGE = args.simulate_out_of_range
+SIMULATE_MISSING_TIMESTAMP = args.simulate_missing_timestamp
 ENDPOINT_PATH = "/ws"
 CLOCK_RESOLUTION = 0.015 # 15ms
 INTERVAL = 1.0 / PACKET_RATE_HZ
@@ -89,15 +92,14 @@ def generate_packet(seq: int, time: float) -> dict:
         "frequency": PACKET_RATE_HZ
     }
 
-    # TODO add a boolean flag for simulating out of range values.
     # Inject malformed packet every 50th
-    # if seq % 50 == 0:
-    #     packet.pop("timestamp")
+    if SIMULATE_MISSING_TIMESTAMP and seq % 50 == 0:
+        packet.pop("timestamp")
 
     # TODO add a boolean flag for simulating out of range values.
     # Inject out-of-range values every 120th
-    # if seq % 120 == 0:
-    #     packet["values"][0] = 9999.0
+    if SIMULATE_OUT_OF_RANGE and seq % 120 == 0:
+        packet["values"][0] = 9999.0
 
     return packet
 
