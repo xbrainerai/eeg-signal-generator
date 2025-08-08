@@ -6,6 +6,7 @@ from metrics.metric import Metric
 from metrics.metric_output import MetricOutput
 from metrics.metric_logger_output import MetricLoggerOutput
 from metrics.logger_file import MetricLoggerFile
+from metrics.logger_ws import MetricLoggerWS
 from metrics.main_ingest import MainIngest
 
 class MetricsCollector:
@@ -19,6 +20,8 @@ class MetricsCollector:
             self.outputs.append(MetricLoggerOutput())
         if log_config['log_file_configuration']:
             self.outputs.append(MetricLoggerFile(log_config['log_file_configuration']['log_file_name'], log_config['log_file_configuration']['log_file_max_size'], log_config['log_file_configuration']['log_file_max_count']))
+        if log_config.get('log_to_websocket', False):
+            self.outputs.append(MetricLoggerWS())
         self._running = True
 
     def stop(self):
